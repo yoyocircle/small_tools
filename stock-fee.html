@@ -1,0 +1,482 @@
+<html><head><base href="https://www.example.com/stock-trading-tool/"><title>Stock Trading Fee Optimizer</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f7f9fc;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+.left-panel, .right-panel {
+    padding: 30px;
+    box-sizing: border-box;
+}
+.left-panel {
+    width: 40%;
+    background-color: #fff;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    z-index: 1;
+}
+.right-panel {
+    width: 60%;
+    background-color: #f0f4f8;
+    overflow-y: auto;
+}
+h1, h2, h3, h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+h1 {
+    font-size: 24px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #34495e;
+    font-weight: 600;
+}
+input[type="number"], select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+button {
+    background-color: #3498db;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #2980b9;
+}
+.result {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.transaction {
+    margin-bottom: 15px;
+    padding: 15px;
+    background-color: #e8f4f8;
+    border-radius: 4px;
+}
+.language-switch {
+    text-align: right;
+    margin-bottom: 20px;
+}
+.language-switch button {
+    background-color: transparent;
+    color: #3498db;
+    border: 1px solid #3498db;
+    padding: 5px 10px;
+    font-size: 14px;
+    width: auto;
+}
+.language-switch button:hover {
+    background-color: #3498db;
+    color: white;
+}
+.rules-toggle {
+    text-align: center;
+    margin-top: 20px;
+    color: #3498db;
+    cursor: pointer;
+}
+.rules {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.rules ul {
+    padding-left: 20px;
+}
+.comparison {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e8f4f8;
+    border-radius: 4px;
+}
+.formula {
+    font-family: monospace;
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow-x: auto;
+}
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    .left-panel, .right-panel {
+        width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+<div id="app" class="container">
+    <div class="left-panel">
+        <div class="language-switch">
+            <button @click="toggleLanguage">{{ language === 'en' ? '中文' : 'English' }}</button>
+        </div>
+        <h1>{{ translations[language].title }}</h1>
+        
+        <div class="form-group">
+            <label>{{ translations[language].stockPrice }}:
+                <input type="number" v-model.number="stockPrice" min="0" step="0.01">
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>{{ translations[language].shareCount }}:
+                <input type="number" v-model.number="shareCount" min="1" step="1">
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>{{ translations[language].discount }}:
+                <input type="number" v-model.number="discount" min="0" max="1" step="0.01">
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>{{ translations[language].roundingMethod }}:
+                <select v-model="roundType">
+                    <option value="floor">{{ translations[language].floorRounding }}</option>
+                    <option value="round">{{ translations[language].standardRounding }}</option>
+                </select>
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>{{ translations[language].wholeLotMinFee }}:
+                <input type="number" v-model.number="minFeeWhole" min="0" step="0.1">
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>{{ translations[language].oddLotMinFee }}:
+                <input type="number" v-model.number="minFeeOddLot" min="0" step="0.1">
+            </label>
+        </div>
+        
+        <button @click="calculate">{{ translations[language].calculate }}</button>
+        
+        <div class="rules-toggle" @click="toggleRules">
+            {{ showRules ? translations[language].hideRules : translations[language].showRules }}
+        </div>
+
+        <div v-if="showRules" class="rules">
+            <h3>{{ translations[language].rulesTitle }}</h3>
+            <ul>
+                <li v-for="rule in translations[language].rules">{{ rule }}</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="right-panel">
+        <div v-if="result" class="result">
+            <h2>{{ translations[language].result }}</h2>
+            <p><strong>{{ translations[language].totalFee }}:</strong> {{ result.fee.toFixed(2) }}</p>
+            <h3>{{ translations[language].transactions }}:</h3>
+            <div v-for="(transaction, index) in mergedTransactions" class="transaction">
+                <p><strong>{{ translations[language].transaction }} {{ index + 1 }}:</strong> {{ transaction.shares }} {{ translations[language].shares }}</p>
+                <p><strong>{{ translations[language].fee }}:</strong> {{ calculateFee(stockPrice, transaction.shares).toFixed(2) }}</p>
+                <p><strong>{{ translations[language].count }}:</strong> {{ transaction.count }}</p>
+            </div>
+
+            <div class="comparison">
+                <h3>{{ translations[language].comparison }}</h3>
+                <p><strong>{{ translations[language].singleTransactionFee }}:</strong> {{ singleTransactionFee.toFixed(2) }}</p>
+                <p><strong>{{ translations[language].difference }}:</strong> {{ (singleTransactionFee - result.fee).toFixed(2) }}</p>
+                <p><strong>{{ translations[language].percentageSaved }}:</strong> {{ ((1 - result.fee / singleTransactionFee) * 100).toFixed(2) }}%</p>
+                
+                <h4>{{ translations[language].formulas }}:</h4>
+                <div class="formula">
+                    {{ translations[language].singleTransactionFormula }}:
+                    {{ singleTransactionFormula }}
+                </div>
+                <div class="formula">
+                    {{ translations[language].optimizedTransactionFormula }}:
+                    {{ optimizedTransactionFormula }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+new Vue({
+    el: '#app',
+    data: {
+        stockPrice: 12.35,
+        shareCount: 1000,
+        discount: 0.28,
+        roundType: 'round',
+        minFeeWhole: 20.0,
+        minFeeOddLot: 1.0,
+        result: null,
+        language: 'en',
+        showRules: false,
+        singleTransactionFee: 0,
+        singleTransactionFormula: '',
+        optimizedTransactionFormula: '',
+        translations: {
+            'en': {
+                title: 'Stock Trading Fee Optimizer',
+                rulesTitle: 'Rules',
+                rules: [
+                    'The fee rate is fixed at 0.1425%.',
+                    'Whole lot trading is for every 1000 shares.',
+                    'Odd lot trading is for less than 1000 shares.',
+                    'The minimum fee for whole lot trading is adjustable (default 20).',
+                    'The minimum fee for odd lot trading is adjustable (default 1).',
+                    'The discount can be set between 0 and 1.',
+                    'Two rounding methods are available: floor (round down) or standard rounding.'
+                ],
+                stockPrice: 'Stock Price',
+                shareCount: 'Number of Shares',
+                discount: 'Discount',
+                roundingMethod: 'Rounding Method',
+                floorRounding: 'Round Down',
+                standardRounding: 'Standard Rounding',
+                wholeLotMinFee: 'Whole Lot Minimum Fee',
+                oddLotMinFee: 'Odd Lot Minimum Fee',
+                calculate: 'Calculate',
+                result: 'Result',
+                totalFee: 'Total Fee',
+                transactions: 'Transactions',
+                transaction: 'Transaction',
+                shares: 'shares',
+                fee: 'Fee',
+                count: 'Count',
+                showRules: 'Show Rules',
+                hideRules: 'Hide Rules',
+                comparison: 'Comparison with Single Transaction',
+                singleTransactionFee: 'Single Transaction Fee',
+                difference: 'Difference',
+                percentageSaved: 'Percentage Saved',
+                formulas: 'Formulas',
+                singleTransactionFormula: 'Single Transaction Formula',
+                optimizedTransactionFormula: 'Optimized Transaction Formula',
+                wholeLotFee: 'Whole Lot Fee',
+                oddLotFee: 'Odd Lot Fee'
+            },
+            'zh': {
+                title: '股票交易手續費優化器',
+                rulesTitle: '規則說明',
+                rules: [
+                    '手續費率固定為 0.1425%。',
+                    '整股交易為每 1000 股。',
+                    '零股交易為少於 1000 股。',
+                    '整股交易最低手續費可調整（預設 20）。',
+                    '零股交易最低手續費可調整（預設 1）。',
+                    '折扣可設定在 0 到 1 之間。',
+                    '有兩種捨入方式：無條件捨去或四捨五入。'
+                ],
+                stockPrice: '股票價格',
+                shareCount: '股票數量',
+                discount: '折扣',
+                roundingMethod: '手續費計算方式',
+                floorRounding: '無條件捨去',
+                standardRounding: '四捨五入',
+                wholeLotMinFee: '整股交易最低手續費',
+                oddLotMinFee: '零股交易最低手續費',
+                calculate: '計算',
+                result: '結果',
+                totalFee: '總手續費',
+                transactions: '交易明細',
+                transaction: '交易',
+                shares: '股',
+                fee: '手續費',
+                count: '次數',
+                showRules: '顯示規則',
+                hideRules: '隱藏規則',
+                comparison: '與單筆交易比較',
+                singleTransactionFee: '單筆交易手續費',
+                difference: '節省金額',
+                percentageSaved: '節省百分比',
+                formulas: '計算公式',
+                singleTransactionFormula: '單筆交易公式',
+                optimizedTransactionFormula: '優化交易公式',
+                wholeLotFee: '整股手續費',
+                oddLotFee: '零股手續費'
+            }
+        }
+    },
+    created() {
+        const userLang = navigator.language || navigator.userLanguage;
+        this.language = userLang.startsWith('zh') ? 'zh' : 'en';
+    },
+    computed: {
+        mergedTransactions() {
+            if (!this.result) return [];
+            const merged = {};
+            this.result.transactions.forEach(shares => {
+                if (merged[shares]) {
+                    merged[shares].count++;
+                } else {
+                    merged[shares] = { shares, count: 1 };
+                }
+            });
+            return Object.values(merged);
+        }
+    },
+    methods: {
+        toggleLanguage() {
+            this.language = this.language === 'en' ? 'zh' : 'en';
+        },
+        toggleRules() {
+            this.showRules = !this.showRules;
+        },
+        calculate() {
+            const FEE_RATE = 0.001425;
+            const WHOLE_SHARES = 1000;
+            const ROUND_DOWN_FUNC = this.roundType === "floor" ? Math.floor : Math.round;
+            const N = this.roundType === "floor" ? 1.9999 : 1.4999;
+
+            const roundFee = (fee) => parseFloat(ROUND_DOWN_FUNC(fee));
+
+            const calculateWholeSharesFee = (price, nShares) => {
+                if (nShares === 0) return 0;
+                if (nShares % WHOLE_SHARES !== 0) throw new Error(`nShares should be multiple of ${WHOLE_SHARES}`);
+                let fee = roundFee(price * nShares * FEE_RATE * this.discount);
+                return fee > this.minFeeWhole ? fee : this.minFeeWhole;
+            };
+
+            const calculateOddLotFee = (price, nShares) => {
+                if (nShares === 0) return 0;
+                if (nShares < 1 || nShares > 999) throw new Error(`${nShares} should be in [1, ${WHOLE_SHARES})`);
+                let fee = roundFee(price * nShares * FEE_RATE * this.discount);
+                return fee > this.minFeeOddLot ? fee : this.minFeeOddLot;
+            };
+
+            const calculateFee = (price, nShares) => {
+                return calculateWholeSharesFee(price, Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES) +
+                       calculateOddLotFee(price, nShares % WHOLE_SHARES);
+            };
+
+            const MIN_TOTAL_PRICE_1_NTD = roundFee(N * (1 / FEE_RATE / this.discount));
+            const MAX_SHARES_1_NTD = Math.floor(MIN_TOTAL_PRICE_1_NTD / this.stockPrice);
+            const dp = Array(this.shareCount + 1).fill().map(() => [Infinity, []]);
+
+            dp[0] = [0, []];
+            let knownFeeShare = 0;
+
+            for (let i = 1; i < 1000; i++) {
+                const fee = calculateOddLotFee(this.stockPrice, i);
+                if (fee <= 2.0) {
+                    dp[i] = [calculateOddLotFee(this.stockPrice, i), [i]];
+                    knownFeeShare = i;
+                } else {
+                    break;
+                }
+            }
+
+            const minFeeCache = new Map();
+
+            const minFee = (price, nShares) => {
+                if (nShares <= knownFeeShare || dp[nShares][0] !== Infinity) {
+                    return dp[nShares];
+                } else if (minFeeCache.has(nShares)) {
+                    return minFeeCache.get(nShares);
+                } else {
+                    const sFee = calculateFee(price, nShares);
+                    const sTransaction = [Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES, nShares % WHOLE_SHARES];
+
+                    const dp1 = minFee(price, nShares - MAX_SHARES_1_NTD);
+                    const dp2 = minFee(price, nShares - knownFeeShare);
+
+                    const options = [
+                        [sFee, sTransaction],
+                        [dp1[0] + dp[MAX_SHARES_1_NTD][0], [MAX_SHARES_1_NTD].concat(dp1[1])],
+                        [dp2[0] + dp[knownFeeShare][0], [knownFeeShare].concat(dp2[1])]
+                    ];
+
+                    const [fee, transactions] = options.sort((a, b) => {
+                        if (a[0] === b[0]) {
+                            return a[1].length - b[1].length;
+                        }
+                        return a[0] - b[0];
+                    })[0];
+
+                    dp[nShares] = [fee, transactions];
+                    minFeeCache.set(nShares, dp[nShares]);
+                    return dp[nShares];
+                }
+            };
+
+            this.result = {
+                fee: minFee(this.stockPrice, this.shareCount)[0],
+                transactions: minFee(this.stockPrice, this.shareCount)[1]
+            };
+
+            // Calculate single transaction fee
+            const wholeLotShares = Math.floor(this.shareCount / WHOLE_SHARES) * WHOLE_SHARES;
+            const oddLotShares = this.shareCount % WHOLE_SHARES;
+            const wholeLotFee = calculateWholeSharesFee(this.stockPrice, wholeLotShares);
+            const oddLotFee = calculateOddLotFee(this.stockPrice, oddLotShares);
+            this.singleTransactionFee = wholeLotFee + oddLotFee;
+
+            // Generate formulas
+            this.singleTransactionFormula = `${this.translations[this.language].wholeLotFee}: max(${this.stockPrice} * ${wholeLotShares} * ${FEE_RATE} * ${this.discount}, ${this.minFeeWhole}) = ${wholeLotFee.toFixed(2)}\n` +
+                                            `${this.translations[this.language].oddLotFee}: max(${this.stockPrice} * ${oddLotShares} * ${FEE_RATE} * ${this.discount}, ${this.minFeeOddLot}) = ${oddLotFee.toFixed(2)}\n` +
+                                            `${this.translations[this.language].totalFee}: ${wholeLotFee.toFixed(2)} + ${oddLotFee.toFixed(2)} = ${this.singleTransactionFee.toFixed(2)}`;
+            
+            this.optimizedTransactionFormula = this.mergedTransactions.map(transaction => 
+                `${transaction.count} * max(${this.stockPrice} * ${transaction.shares} * ${FEE_RATE} * ${this.discount}, ${transaction.shares < 1000 ? this.minFeeOddLot : this.minFeeWhole})`
+            ).join(' + ') + ` = ${this.result.fee.toFixed(2)}`;
+        },
+        calculateFee(price, nShares) {
+            const FEE_RATE = 0.001425;
+            const WHOLE_SHARES = 1000;
+            const ROUND_DOWN_FUNC = this.roundType === "floor" ? Math.floor : Math.round;
+
+            const roundFee = (fee) => parseFloat(ROUND_DOWN_FUNC(fee));
+
+            const calculateWholeSharesFee = (price, nShares) => {
+                if (nShares === 0) return 0;
+                if (nShares % WHOLE_SHARES !== 0) throw new Error(`nShares should be multiple of ${WHOLE_SHARES}`);
+                let fee = roundFee(price * nShares * FEE_RATE * this.discount);
+                return fee > this.minFeeWhole ? fee : this.minFeeWhole;
+            };
+
+            const calculateOddLotFee = (price, nShares) => {
+                if (nShares === 0) return 0;
+                if (nShares < 1 || nShares > 999) throw new Error(`${nShares} should be in [1, ${WHOLE_SHARES})`);
+                let fee = roundFee(price * nShares * FEE_RATE * this.discount);
+                return fee > this.minFeeOddLot ? fee : this.minFeeOddLot;
+            };
+
+            return calculateWholeSharesFee(price, Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES) +
+                   calculateOddLotFee(price, nShares % WHOLE_SHARES);
+        }
+    }
+});
+</script>
+</body></html>
