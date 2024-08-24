@@ -407,7 +407,7 @@ new Vue({
                     return minFeeCache.get(nShares);
                 } else {
                     const sFee = calculateFee(price, nShares);
-                    const sTransaction = [Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES, nShares % WHOLE_SHARES];
+                    const sTransaction = [Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES, nShares % WHOLE_SHARES].filter(x => x > 0);
 
                     let remainingShares = nShares;
                     let initFee = 0;
@@ -427,12 +427,16 @@ new Vue({
 
                     const options = [
                         [
+                            sFee,
+                            sTransaction,
+                        ],
+                        [
                             dp1[0] + dp[MAX_SHARES_1_NTD][0] + initFee,
-                            initTransactions.concat([MAX_SHARES_1_NTD]).concat(dp1[1])
+                            initTransactions.concat([MAX_SHARES_1_NTD]).concat(dp1[1]),
                         ],
                         [
                             dp2[0] + dp[knownFeeShare][0] + initFee,
-                            initTransactions.concat([knownFeeShare]).concat(dp2[1])
+                            initTransactions.concat([knownFeeShare]).concat(dp2[1]),
                         ]
                     ];
 
@@ -453,8 +457,6 @@ new Vue({
                 fee: minFee(this.stockPrice, this.shareCount)[0],
                 transactions: minFee(this.stockPrice, this.shareCount)[1]
             };
-
-            console.log(this.result);
 
             // Calculate single transaction fee
             const wholeLotShares = Math.floor(this.shareCount / WHOLE_SHARES) * WHOLE_SHARES;
