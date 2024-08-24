@@ -145,25 +145,25 @@ button:hover {
             <button @click="toggleLanguage">{{ language === 'en' ? '中文' : 'English' }}</button>
         </div>
         <h1>{{ translations[language].title }}</h1>
-        
+
         <div class="form-group">
             <label>{{ translations[language].stockPrice }}:
                 <input type="number" v-model.number="stockPrice" min="0" step="0.01">
             </label>
         </div>
-        
+
         <div class="form-group">
             <label>{{ translations[language].shareCount }}:
                 <input type="number" v-model.number="shareCount" min="1" step="1">
             </label>
         </div>
-        
+
         <div class="form-group">
             <label>{{ translations[language].discount }}:
                 <input type="number" v-model.number="discount" min="0" max="1" step="0.01">
             </label>
         </div>
-        
+
         <div class="form-group">
             <label>{{ translations[language].roundingMethod }}:
                 <select v-model="roundType">
@@ -172,21 +172,21 @@ button:hover {
                 </select>
             </label>
         </div>
-        
+
         <div class="form-group">
             <label>{{ translations[language].wholeLotMinFee }}:
                 <input type="number" v-model.number="minFeeWhole" min="0" step="0.1">
             </label>
         </div>
-        
+
         <div class="form-group">
             <label>{{ translations[language].oddLotMinFee }}:
                 <input type="number" v-model.number="minFeeOddLot" min="0" step="0.1">
             </label>
         </div>
-        
+
         <button @click="calculate">{{ translations[language].calculate }}</button>
-        
+
         <div class="rules-toggle" @click="toggleRules">
             {{ showRules ? translations[language].hideRules : translations[language].showRules }}
         </div>
@@ -198,7 +198,7 @@ button:hover {
             </ul>
         </div>
     </div>
-    
+
     <div class="right-panel">
         <div v-if="result" class="result">
             <h2>{{ translations[language].result }}</h2>
@@ -215,7 +215,7 @@ button:hover {
                 <p><strong>{{ translations[language].singleTransactionFee }}:</strong> {{ singleTransactionFee.toFixed(2) }}</p>
                 <p><strong>{{ translations[language].difference }}:</strong> {{ (singleTransactionFee - result.fee).toFixed(2) }}</p>
                 <p><strong>{{ translations[language].percentageSaved }}:</strong> {{ ((1 - result.fee / singleTransactionFee) * 100).toFixed(2) }}%</p>
-                
+
                 <h4>{{ translations[language].formulas }}:</h4>
                 <div class="formula">
                     {{ translations[language].singleTransactionFormula }}:
@@ -409,13 +409,31 @@ new Vue({
                     const sFee = calculateFee(price, nShares);
                     const sTransaction = [Math.floor(nShares / WHOLE_SHARES) * WHOLE_SHARES, nShares % WHOLE_SHARES];
 
-                    const dp1 = minFee(price, nShares - MAX_SHARES_1_NTD);
-                    const dp2 = minFee(price, nShares - knownFeeShare);
+                    let remainingShares = nShares;
+                    let initFee = 0;
+                    let initTransactions = [];
+                    if (nShares >= 2 * knownFeeShare) {
+                        // greedy: use 1 NTD fee as much as possible
+                        remainingShares = 2 * knownFeeShare + (nShares - 2 * knownFeeShare) % MAX_SHARES_1_NTD;
+                        const greedyShares = nShares - remainingShares;
+                        if(greedyShares % MAX_SHARES_1_NTD !== 0) throw new Error(`greedyShares should be multiple of ${MAX_SHARES_1_NTD}`);
+                        const nTimes1NTD = greedyShares / MAX_SHARES_1_NTD;
+                        initFee = nTimes1NTD * 1.0;
+                        initTransactions = Array(nTimes1NTD).fill(MAX_SHARES_1_NTD);
+                    }
+
+                    const dp1 = minFee(price, remainingShares - MAX_SHARES_1_NTD);
+                    const dp2 = minFee(price, remainingShares - knownFeeShare);
 
                     const options = [
-                        [sFee, sTransaction],
-                        [dp1[0] + dp[MAX_SHARES_1_NTD][0], [MAX_SHARES_1_NTD].concat(dp1[1])],
-                        [dp2[0] + dp[knownFeeShare][0], [knownFeeShare].concat(dp2[1])]
+                        [
+                            dp1[0] + dp[MAX_SHARES_1_NTD][0] + initFee,
+                            initTransactions.concat([MAX_SHARES_1_NTD]).concat(dp1[1])
+                        ],
+                        [
+                            dp2[0] + dp[knownFeeShare][0] + initFee,
+                            initTransactions.concat([knownFeeShare]).concat(dp2[1])
+                        ]
                     ];
 
                     const [fee, transactions] = options.sort((a, b) => {
@@ -436,6 +454,8 @@ new Vue({
                 transactions: minFee(this.stockPrice, this.shareCount)[1]
             };
 
+            console.log(this.result);
+
             // Calculate single transaction fee
             const wholeLotShares = Math.floor(this.shareCount / WHOLE_SHARES) * WHOLE_SHARES;
             const oddLotShares = this.shareCount % WHOLE_SHARES;
@@ -447,8 +467,8 @@ new Vue({
             this.singleTransactionFormula = `${this.translations[this.language].wholeLotFee}: max(${this.stockPrice} * ${wholeLotShares} * ${FEE_RATE} * ${this.discount}, ${this.minFeeWhole}) = ${wholeLotFee.toFixed(2)}\n` +
                                             `${this.translations[this.language].oddLotFee}: max(${this.stockPrice} * ${oddLotShares} * ${FEE_RATE} * ${this.discount}, ${this.minFeeOddLot}) = ${oddLotFee.toFixed(2)}\n` +
                                             `${this.translations[this.language].totalFee}: ${wholeLotFee.toFixed(2)} + ${oddLotFee.toFixed(2)} = ${this.singleTransactionFee.toFixed(2)}`;
-            
-            this.optimizedTransactionFormula = this.mergedTransactions.map(transaction => 
+
+            this.optimizedTransactionFormula = this.mergedTransactions.map(transaction =>
                 `${transaction.count} * max(${this.stockPrice} * ${transaction.shares} * ${FEE_RATE} * ${this.discount}, ${transaction.shares < 1000 ? this.minFeeOddLot : this.minFeeWhole})`
             ).join(' + ') + ` = ${this.result.fee.toFixed(2)}`;
         },
