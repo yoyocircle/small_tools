@@ -6,30 +6,27 @@ This repository implements a dynamic programming (DP) algorithm to minimize stoc
 
 ### Key Concepts
 
-- **Whole Lot Fee**: For whole lot transactions (multiples of 1000 shares), the fee is:
-  $$
-  \text{Fee}_{\text{whole}} = \max(\text{price} \times k \times \text{FEE\_RATE} \times \text{discount}, \text{minFee}_{\text{whole}})
-  $$
+- The transaction fee is:
 
-- **Odd Lot Fee**: For odd lot transactions (less than 1000 shares), the fee is:
-  $$
-  \text{Fee}_{\text{odd}} = \max(\text{price} \times k \times \text{FEE\_RATE} \times \text{discount}, \text{minFee}_{\text{odd}})
-  $$
+
+  $$ Fee = \max ( minFee, price \times shares \times {FEE\\_RATE} \times discount) $$
+
+  
+- Two type of trading type:
+  - whole: Minimal unit is 1000 shares
+  - odd: Minmal unit is 1 share, maxinum is 999 shares. 
 
 ### Dynamic Programming Approach
 
 The problem is broken down using a recursive dynamic programming strategy. Let \( dp[i] \) represent the minimum fee for trading `i` shares. The recurrence relation is:
 
+$$ 
+  dp[n] = \min (
+    calculateFee(n),
+    dp[n - nShares1Dollar] + 1,
+    dp[n - nShares1Dollar * 2] + 2,
+  )
 $$
-dp[n] = \min \left( \text{calculateFee}(n), \, dp[n - k_{\text{whole}}] + \text{Fee}_{\text{whole}}(k_{\text{whole}}), \, dp[n - k_{\text{odd}}] + \text{Fee}_{\text{odd}}(k_{\text{odd}}) \right)
-$$
-
-Where:
-$$ whole = 1000k,\forall \, k \in \mathbb{Ｚ} $$
-and
-$$ odd \in \mathbb{Z} \cap [1,999] $$
-<!-- - $\forall \, odd \in (1,2)$ -->
-<!-- - $$ \text{odd} $$ in [1, 999]. -->
 
 
 By solving smaller subproblems optimally and combining them, the algorithm efficiently computes the minimum fee for `n` shares.
