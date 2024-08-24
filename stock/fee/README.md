@@ -1,6 +1,6 @@
 # Stock Trading Fee Optimization Algorithm
 
-This repository implements a dynamic programming (DP) algorithm to minimize stock trading transaction fees. The goal is to determine the optimal way to split `n` shares into transactions, balancing whole lots (multiples of 1000 shares) and odd lots (less than 1000 shares), each with different fee structures.
+This repository implements a dynamic programming (DP) algorithm to minimize stock trading transaction fees and trading times. The goal is to determine the optimal way to split `n` shares into transactions, balancing whole lots (multiples of 1000 shares) and odd lots (less than 1000 shares), each with different fee structures.
 
 ## Algorithm Overview
 
