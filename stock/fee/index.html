@@ -383,15 +383,14 @@ new Vue({
 
             const MIN_TOTAL_PRICE_1_NTD = roundFee(N * (1 / FEE_RATE / this.discount));
             const MAX_SHARES_1_NTD = Math.floor(MIN_TOTAL_PRICE_1_NTD / this.stockPrice);
-            const dp = Array(this.shareCount + 1).fill().map(() => [Infinity, []]);
+            const dp = Array();
 
-            dp[0] = [0, []];
+            dp.push([0, []])
             let knownFeeShare = 0;
-
             for (let i = 1; i < 1000; i++) {
                 const fee = calculateOddLotFee(this.stockPrice, i);
                 if (fee <= 2.0) {
-                    dp[i] = [calculateOddLotFee(this.stockPrice, i), [i]];
+                    dp.push([fee, [i]])
                     knownFeeShare = i;
                 } else {
                     break;
@@ -401,7 +400,7 @@ new Vue({
             const minFeeCache = new Map();
 
             const minFee = (price, nShares) => {
-                if (nShares <= knownFeeShare || dp[nShares][0] !== Infinity) {
+                if (nShares <= knownFeeShare) {
                     return dp[nShares];
                 } else if (minFeeCache.has(nShares)) {
                     return minFeeCache.get(nShares);
@@ -447,9 +446,8 @@ new Vue({
                         return a[0] - b[0];
                     })[0];
 
-                    dp[nShares] = [fee, transactions];
-                    minFeeCache.set(nShares, dp[nShares]);
-                    return dp[nShares];
+                    minFeeCache.set(nShares, [fee, transactions]);
+                    return [fee, transactions];
                 }
             };
 
