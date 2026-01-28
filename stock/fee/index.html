@@ -411,33 +411,46 @@ new Vue({
                     let remainingShares = nShares;
                     let initFee = 0;
                     let initTransactions = [];
-                    if (nShares >= 2 * knownFeeShare) {
-                        // greedy: use 1 NTD fee as much as possible
+                    // Greedy optimization: use 1 NTD fee transactions as much as possible
+                    // Only apply if MAX_SHARES_1_NTD is valid (within dp range)
+                    if (nShares >= 2 * knownFeeShare && MAX_SHARES_1_NTD > 0 && MAX_SHARES_1_NTD <= knownFeeShare) {
                         remainingShares = 2 * knownFeeShare + (nShares - 2 * knownFeeShare) % MAX_SHARES_1_NTD;
                         const greedyShares = nShares - remainingShares;
                         if(greedyShares % MAX_SHARES_1_NTD !== 0) throw new Error(`greedyShares should be multiple of ${MAX_SHARES_1_NTD}`);
                         const nTimes1NTD = greedyShares / MAX_SHARES_1_NTD;
-                        initFee = nTimes1NTD * 1.0;
+                        initFee = nTimes1NTD * dp[MAX_SHARES_1_NTD][0];
                         initTransactions = Array(nTimes1NTD).fill(MAX_SHARES_1_NTD);
                     }
-
-                    const dp1 = minFee(price, remainingShares - MAX_SHARES_1_NTD);
-                    const dp2 = minFee(price, remainingShares - knownFeeShare);
 
                     const options = [
                         [
                             sFee,
                             sTransaction,
                         ],
-                        [
+                    ];
+
+                    // Option 2: Split off MAX_SHARES_1_NTD shares (only if valid)
+                    const canUseMax1NTD = MAX_SHARES_1_NTD > 0 &&
+                                          MAX_SHARES_1_NTD <= knownFeeShare &&
+                                          remainingShares - MAX_SHARES_1_NTD >= 0;
+                    if (canUseMax1NTD) {
+                        const dp1 = minFee(price, remainingShares - MAX_SHARES_1_NTD);
+                        options.push([
                             dp1[0] + dp[MAX_SHARES_1_NTD][0] + initFee,
                             initTransactions.concat([MAX_SHARES_1_NTD]).concat(dp1[1]),
-                        ],
-                        [
+                        ]);
+                    }
+
+                    // Option 3: Split off knownFeeShare shares (only if valid)
+                    const canUseKnownFee = knownFeeShare > 0 &&
+                                           remainingShares - knownFeeShare >= 0;
+                    if (canUseKnownFee) {
+                        const dp2 = minFee(price, remainingShares - knownFeeShare);
+                        options.push([
                             dp2[0] + dp[knownFeeShare][0] + initFee,
                             initTransactions.concat([knownFeeShare]).concat(dp2[1]),
-                        ]
-                    ];
+                        ]);
+                    }
 
                     const [fee, transactions] = options.sort((a, b) => {
                         if (a[0] === b[0]) {
