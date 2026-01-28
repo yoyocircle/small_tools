@@ -18,22 +18,33 @@ This repository implements a dynamic programming (DP) algorithm to minimize stoc
 
 ### Dynamic Programming Approach
 
-The problem is broken down using a recursive dynamic programming strategy. Let \( dp[i] \) represent the minimum fee for trading `i` shares. The recurrence relation is:
+The problem is broken down using a recursive dynamic programming strategy. Let \( dp[i] \) represent the minimum fee and transaction breakdown for trading `i` shares.
 
-$$ 
-  dp[n] = \min (
-    calculateFee(n),
-    dp[n - nShares1Dollar] + 1,
-    dp[n - nShares1Dollar * 2] + 2,
-  )
+**Base case:** For small share counts (where fee ≤ 2 NTD), we precompute the optimal single odd-lot transaction.
+
+**Recurrence relation:**
+
+$$
+dp[n] = \min \begin{cases}
+  \text{calculateFee}(n) & \text{(single transaction)} \\
+  dp[n - k_1] + dp[k_1] & \text{(split off } k_1 \text{ shares)} \\
+  dp[n - k_2] + dp[k_2] & \text{(split off } k_2 \text{ shares)}
+\end{cases}
 $$
 
+Where:
+- \( k_1 \) = maximum shares that yield exactly 1 NTD fee (calculated from price and discount)
+- \( k_2 \) = maximum shares where fee ≤ 2 NTD
 
 By solving smaller subproblems optimally and combining them, the algorithm efficiently computes the minimum fee for `n` shares.
 
 ### Greedy Optimization
 
-For larger numbers of shares, a greedy strategy is employed alongside DP. Known configurations that yield minimal fees (like 1 NTD fee) are used as much as possible, reducing the problem size for DP processing.
+For larger numbers of shares, a greedy strategy is employed alongside DP. When \( k_1 \) (max shares for 1 NTD fee) is valid (i.e., within the odd-lot range), we greedily use as many \( k_1 \)-share transactions as possible, reducing the problem size for DP processing.
+
+This optimization is only applied when:
+- The share count is large enough (\( n \geq 2 \times k_2 \))
+- \( k_1 \) is within the precomputed dp range (\( k_1 \leq k_2 \))
 
 ### Output
 
